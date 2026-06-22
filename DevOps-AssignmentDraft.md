@@ -11,12 +11,73 @@ Drafting of the Assignment collateral.
   - [Appraisal against Business Context](#appraisal-against-business-context)
   - [Appraisal of Business DevOps Integration](#appraisal-of-business-devops-integration)
 
+## [Assessment Requirements](#contents)
+
+Refer to [Assessment Brief](/bpp_module6_project/Assessment%20Brief%20DevOps.docx).
+
+"You should create a small **web application**. The specifics of the application are unimportant other than that you should consider the technology in order to fully meet the assessment criteria.
+
+You should **deploy** the web application using a **CI/CD pipeline** including **provision of the infrastructure**."
+
+**Deploy**
+
+- Automated deployment of something with tools.
+- Deploy anything, a web app.
+  - Could literally just be TradeStream UI.
+- Use of Docker would count as infrastructure
+
+**CI/CD pipeline**
+
+- Some tooling.
+
+**Provision of the infrastructure**
+
+- Provisioning environments (with resources) is traditionally an Ops job.
+  - Might have more than one environment.
+- Us of Docker considered "Provisioning Infra".
+  - Guessing this with relation to declaring the containers.
+  - k8s yaml would be equivalent.
+- Expecting use of **Terraform** to define and provision a VM.
+
 ## [Assessment Ideation](#contents)
 
 ### [Practical - API Idea](#contents)
 
 **25% of marks.**
 
+Maybe work backwards to automate the whole stack.
+
+Only need to go as far as host needed for the app. So when containerised, that would be the image guest host, not the need to specify the Ubuntu-Server host for the VM that is hosting the k0s runtime for deployment of the pods.
+
+Proxmox, the Ubuntu-Server VM, and k0s as deployed to the VM are assumed to be provisioned by Ops.
+
+Will only need to specify the pod image details, automated deployment with change to either the app code or the infra code.
+
+Should have at least some tests.
+
+- Deploy VM on Proxmox with Terraform.
+- Install dependencies on VM.
+  - Install git?
+  - Possibly Ansible?
+  - Maybe some other agent?
+  - Install k0s on VM.
+  - kubectl apply -f . <app files>
+
+#### Bare-bones Example
+
+This uses github actions. Not as good as Jenkins or Harness.
+
+- <https://github.com/antonyleesbpp/docker-demo>
+
+Between the action to pull the code and build the docker image it should do the CI stuff of tests etc.
+
+The docker build is effectively the Continuous Delivery part, packaging.
+
+Test is kind of Smoke Test, that checks for the word "Hello" spelt correctly. Poor test but demonstrates how this then fails the pipeline.
+
+Incorporating role-back based on failed tests after deployment would be complex by great.
+
+AWS has CodePipeline.
 
 #### Current Pipeline
 
@@ -29,7 +90,7 @@ Drafting of the Assignment collateral.
 - proxmox vm for k0s cluster
 - mini pc nodes
 - pfsense
-- cloudflare tunnels
+- cloudflare "cloudflared" tunnels
 - zitadel - identity provider
 - tailscale tailnet
 - Vault (kubuntu)
@@ -72,12 +133,33 @@ Drafting of the Assignment collateral.
 ##### Tools
 
 - Secure Secrets Management.
+  - 
 - git.
 - SonarQube.
+- Flux
+  - Replaces the use of Jenkins.
+  - Deployed to k0s cluster.
+  - Monitors the GitRepo for changes.
+  - Minimal footprint compared with ArgoCD.
+    - No visual like ArgoCD, can use:
+      - Weave GitOps
+      - Podman Desktop/Lens
+  - Flux integrates natively with SOPS (Secrets OCS) and Sealed Secrets. You can safely push encrypted database passwords or API tokens directly to a public or private GitHub repository. Flux will decrypt them inside the cluster using a private key, keeping your pipeline entirely automated.
+
+#### Possible secrets management
+
+```mermaid
+graph LR
+    A[Public Git Repo] -->|1. Commit Change| B[GitHub Actions]
+    C[GitHub Actions Secrets] -->|2. Inject at Runtime| B
+    B -->|3. kubectl apply secret| D[Your k0s Cluster]
+    A -->|4. Pulls Open Manifests| E[Flux CD]
+
+```
 
 ##### Process
 
-- Testing
+- Testing. Just a couple of indicative tests will do.
   - Security
     - Static Application Security Testing (SAST)
     - Dynamic Application Security Testing (DAST)
@@ -88,6 +170,23 @@ Drafting of the Assignment collateral.
     - Endurance Testing
     - Spike Testing
 - GitOps
+
+
+#### Possible git folder structure
+
+```Text
+├── apps/
+│   ├── base/                  # Core application manifests (Radarr, Nginx, Home Assistant)
+│   └── overlays/
+│       ├── dev-kubuntu/       # Development-specific tweaks
+│       ├── test-proxmox/      # Test environment settings
+│       └── prod-vultr/        # Production-grade scale and resources
+├── infrastructure/            # Cluster-wide tools (Cert-Manager, MetalLB, Storage Classes)
+└── clusters/
+    ├── dev-kubuntu/           # Flux sync configurations pointing to dev overlay
+    ├── test-proxmox/          # Flux sync configurations pointing to test overlay
+    └── prod-vultr/            # Flux sync configurations pointing to prod overlay
+```
 
 ### [Report - Design & Implementation Appraisal, Contextual Technical Appraisal, Contextual DevOps Appraisal](#contents)
 
@@ -212,6 +311,8 @@ Shared responsibility between Ops and Dev for:
   - What other factors need to be addressed?
   - Is this all being done safe?
     - Appropriate safety over speed.
+
+- Why built/designed what built, was it worth it?
 
 ### [Appraisal against Business Context](#contents)
 
